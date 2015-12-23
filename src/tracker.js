@@ -1,70 +1,95 @@
-module.exports = ClickTracker;
+var _ = require('lodash');
+var moment = require('moment');
 
-console.log( 'hello there' );
+module.exports = function Tracker() {
 
-function ClickTracker(interval) {
-
-    interval = interval && interval > 0 || 100;
+    // Interface
+    // ---------
 
     var self = {
-        tracker: {},
+        started: false,
+        stopped: false,
+        frames: [],
         start: start,
-        store: store,
-        restart: restart
+        stop: stop,
+        duration: duration
     };
 
-    function start() {
-        console.log( 'Starting tracker...' );
-        self.tracker = trackMovement(interval);
-        return self;
+    // Initialization
+    // --------------
+
+    clearLocalStorage();
+
+    return self;
+
+    // Implementation
+    // --------------
+
+    function Frame(event) {
+        var frame = {
+            time: moment().diff(self.started),
+            x: event.clientX + window.pageXOffset,
+            y: event.clientY + window.pageYOffset,
+            pageXOffset: window.pageXOffset,
+            pageYOffset: window.pageYOffset,
+            clientWidth: document.querySelector('html').clientWidth,
+            clientHeight: document.querySelector('html').clientHeight,
+            next: null,
+            event: {
+                type: event.type
+            }
+        }
+
+        // If not first frame, add this as next to previous
+        if (self.frames.length) {
+            self.frames[self.frames.length-1].next = frame;
+            window.localStorage.setItem('tracker.frame[' + (self.frames.length-1) + ']', JSON.stringify(self.frames[self.frames.length-1]));
+        }
+
+        // Store frame
+        self.frames.push(frame);
+        window.localStorage.setItem('tracker.frame.index', self.frames.length - 1);
+        window.localStorage.setItem('tracker.frame[' + self.frames.length - 1 + ']', JSON.stringify(frame));
+
+        return frame;
     }
 
-    function store() {}
+    function start() {
+        self.started = moment();
+        listen();
+    }
 
-    function trackMovement(interval) {
+    function listen() {
+        window.addEventListener('scroll', Frame);
+        window.addEventListener('mousemove', Frame);
+        window.addEventListener('click', Frame);
+        window.addEventListener('mouseup', Frame);
+        window.addEventListener('resize', Frame);
+    }
 
-        var x, y;
-        var time = 0;
+    function stop() {
+        window.removeEventListener('scroll', Frame);
+        window.removeEventListener('mousemove', Frame);
+        window.removeEventListener('click', Frame);
+        window.removeEventListener('mouseup', Frame);
+        window.removeEventListener('resize', Frame);
+        self.stopped = moment();
+    }
 
-        var tracker = {
-            interval: interval,
-            sequence: []
-        };
+    function duration() {
+        if ( ! self.started )
+            return 0;
+        if ( ! self.stopped )
+            return moment().diff(self.started);
+        return self.stopped.diff(self.started);
+    }
 
-        document.addEventListener( 'mousemove', trackPosition );
-        document.addEventListener( 'click', trackClicks );
-        console.log( 'interval:', setInterval( storePosition, interval ) );
-
-        function trackPosition( event ) {
-            x = event.clientX;
-            y = event.clientY;
+    function clearLocalStorage() {
+        for (var prop in window.localStorage) {
+            if (prop.trim().indexOf('tracker') === 0) {
+                console.log(prop);
+                window.localStorage.removeItem(prop);
+            }
         }
-
-        function storePosition() {
-            tracker.sequence.push({
-                time: time,
-                x: x,
-                y: y
-            });
-            time += interval;
-        }
-
-        function trackClicks( event ) {
-            event.preventDefault();
-            var elementMouseIsOver = document.elementFromPoint(x, y);
-
-            var clickEvent = new MouseEvent("click", {
-                "view": window,
-                "bubbles": true,
-                "cancelable": false
-            });
-
-            tracker.sequence[tracker.sequence.length-1]
-            .click = elementMouseIsOver;
-
-            elementMouseIsOver.dispatchEvent( clickEvent );
-        }
-
-        return tracker;
     }
 }

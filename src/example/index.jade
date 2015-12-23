@@ -1,0 +1,31 @@
+style.
+    body {
+        margin: 0;
+    }
+    nav.tracker {
+        background: black;
+        text-align: center;
+    }
+    nav.tracker button {
+        margin: 10px;
+        background: #ddd;
+        border: none;
+    }
+body
+    nav.tracker
+        button#start Start tracking
+        button#end End tracking
+        button#simulate Simulate last
+
+     Mixins
+     include lorem
+
+    .content
+        h1 Sample content
+        - for (var i = 0; i < 10; i++)
+            h2
+                | Paragraph !{i}
+            p
+                mixin lorem(100)
+
+    script( src = 'index.js' )
